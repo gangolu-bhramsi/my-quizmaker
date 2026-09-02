@@ -12,6 +12,7 @@ Code must be compatible with the Workers runtime.
 ## Configuration
 
 - Worker configuration lives in `wrangler.jsonc`. Note the `.jsonc` extension: comments are allowed.
+- Worker `name` is `quizmaker`. That is the first label in `https://quizmaker.<account-subdomain>.workers.dev`.
 - Keep `nodejs_compat` in `compatibility_flags`. OpenNext requires it for Next.js.
 - Add resource bindings (D1, R2, KV, AI) to `wrangler.jsonc`, then run `npm run cf-typegen`
   to regenerate `cloudflare-env.d.ts` so the bindings are typed.
@@ -30,9 +31,22 @@ Code must be compatible with the Workers runtime.
 - Production values are set with `npx wrangler secret put NAME`. Never commit a secret
   and never write one into `wrangler.jsonc`.
 
+## workers.dev subdomain names
+
+The account-level subdomain (the middle label in `https://quizmaker.<subdomain>.workers.dev`)
+must match `^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$`: lowercase letters, digits, hyphens;
+no capitals, no underscores. Wrangler re-prompts silently if the name is invalid.
+Register it in the user's interactive terminal or the Cloudflare dashboard. A non-interactive
+agent shell will default that prompt to **no**.
+
 ## Deployment
 
 - `npm run preview` builds and runs the app on the local Workers runtime. Prefer this over
   `npm run dev` when verifying anything runtime-specific, since `npm run dev` uses Node.
-- `npm run deploy` builds and deploys to Cloudflare.
+- `npm run deploy` builds and deploys with `wrangler deploy` (also POSTs the Worker workers.dev route).
+- `npm run upload` builds and uploads a Worker version without enabling the workers.dev route.
 - Do not run `npm run deploy` unless the user explicitly asks you to deploy.
+- If deploy uploads the Worker then fails with API **10034** on
+  `POST .../workers/scripts/quizmaker/subdomain` while the dashboard already shows a verified
+  email, use `npm run upload` and enable workers.dev in the dashboard. Relogin does not fix it.
+- OpenNext warns that Windows is unsupported; builds on this repo have still succeeded.

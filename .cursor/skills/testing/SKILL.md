@@ -9,10 +9,20 @@ paths:
 
 # Testing with Vitest
 
-Vitest is **not installed in this starter**. Set it up the first time tests are needed.
+Vitest **is installed**. Scripts: `"test": "vitest run"`, `"test:watch": "vitest"`.
+Config: `vitest.config.ts` at the repo root.
+
+Pin **`@vitejs/plugin-react@4`**. Unpinned `@vitejs/plugin-react@6` fails `ERESOLVE`
+against shadcn's Babel 7.
+
+`@testing-library/user-event` is installed. **`@testing-library/jest-dom` is not.**
+Do not use `toBeInTheDocument`, `toHaveTextContent`, or `toHaveAttribute`.
+Assert with `expect(node).toBeTruthy()`, `node.textContent`, and `node.getAttribute`.
+
+If adding Vitest to a fresh clone that somehow lacks it:
 
 ```bash
-npm install -D vitest @vitejs/plugin-react @testing-library/react jsdom vite-tsconfig-paths
+npm install -D vitest @vitejs/plugin-react@4 @testing-library/react @testing-library/user-event jsdom vite-tsconfig-paths
 ```
 
 Add a `vitest.config.ts` at the repo root:
@@ -71,10 +81,21 @@ beforeEach(() => {
 Mock at the module boundary with `vi.mock`. Never let a unit test reach a real network
 service, a real database, or a real model provider.
 
-Server-only modules need stubbing before they can be imported in a test:
+Server-only modules: **do not** `import "server-only"` in this repo (package is not a
+direct dependency; Vitest cannot resolve it). Keep D1 code off the client graph instead.
+
+`vi.mock` factories are hoisted. Spies used inside the factory must be created with
+`vi.hoisted`:
 
 ```ts
-vi.mock("server-only", () => ({}));
+const { createUser } = vi.hoisted(() => ({
+  createUser: vi.fn(),
+}));
+
+vi.mock("@/lib/services/user", () => ({
+  createUser,
+  UserConflictError,
+}));
 ```
 
 ## Testing code that touches Cloudflare bindings
@@ -108,6 +129,9 @@ import userEvent from "@testing-library/user-event";
 Query by role and accessible name (`screen.getByRole("button", { name: /save/i })`)
 rather than by test IDs or class names. Prefer `userEvent` over `fireEvent`, since it
 models real interaction more faithfully.
+
+Client forms that `await hashPassword` then `fetch` need `await waitFor(...)` after
+submit. Do not assert `fetch` was called synchronously.
 
 Server Components cannot be rendered by Testing Library. Test their data-fetching logic
 directly as plain functions, and reserve component rendering for client components.

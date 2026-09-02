@@ -42,12 +42,17 @@ base, so check for an equivalent before assuming the command failed.
   resolve correctly.
 - Use the theme tokens defined in `src/app/globals.css`, for example `bg-background`,
   `text-muted-foreground`, and `border-destructive`. Do not hard-code hex colors.
+- This Button has **no** `asChild` or `render` prop. For a link that looks like a button,
+  use `buttonVariants()` on a Next.js `Link`.
 
 ## Forms
 
 There is no `Form` component under Base UI. The form primitive is `field`, which provides
 `FieldSet`, `FieldGroup`, `Field`, `FieldLabel`, `FieldDescription`, and `FieldError`.
 
-Build forms as Server Actions validated with Zod, and surface errors through `FieldError`,
-which accepts an array of `{ message }` objects. Do not introduce `react-hook-form`
-without asking the user first.
+Build most mutations as Server Actions validated with Zod, and surface errors through
+`FieldError`, which accepts an array of `{ message }` objects.
+
+**Exception — auth in this sprint:** register and login are `'use client'` forms that
+hash with Web Crypto then `fetch` `POST /api/auth/*`. Do not convert them to Server
+Actions. Do not introduce `react-hook-form` without asking the user first.

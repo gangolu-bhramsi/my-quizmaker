@@ -6,22 +6,24 @@ alwaysApply: false
 
 # Cloudflare D1
 
-D1 is Cloudflare's SQLite database. **This starter has no D1 database configured yet.**
-The conventions below apply once one is added, and describe how to add it.
+D1 is Cloudflare's SQLite database. This project uses one database:
 
-## Adding D1 to the project
+- Binding: `DB`
+- Name: `quizmaker-2026`
+- Id in `wrangler.jsonc`: `3ac801fa-2d58-4aa9-b504-ccd22af4745f`
 
-1. Create the database: `npx wrangler d1 create <name>`
-2. Add the returned `d1_databases` block to `wrangler.jsonc` with binding `DB`.
+## Adding D1 to the project (already done)
+
+1. Create the database: `npx wrangler d1 create quizmaker-2026`
+2. Add the returned id to `wrangler.jsonc` with binding **`DB`** (not `quizmaker_2026`).
 3. Run `npm run cf-typegen` so `env.DB` becomes typed.
 
 ## Access
 
-- Reach the binding through `getCloudflareContext()` from `@opennextjs/cloudflare`,
-  then use `env.DB`.
+- Reach the binding through `getCloudflareContext({ async: true })` from `@opennextjs/cloudflare`,
+  then use `env.DB`. Helper: `src/lib/db.ts` `getDb()`.
 - Centralize queries in `src/lib/` rather than calling `env.DB` from components or
-  route handlers directly. Create the module the first time it is needed instead of
-  assuming one already exists.
+  route handlers directly.
 - D1 is only reachable from server code. Never import a database module into a
   component marked `'use client'`.
 
@@ -37,8 +39,9 @@ The conventions below apply once one is added, and describe how to add it.
 ## Migrations
 
 - Every schema change is a migration. Do not alter the schema with ad-hoc SQL.
-- Create with `npx wrangler d1 migrations create <db> <description>`.
-- List with `npx wrangler d1 migrations list <db>`.
-- Apply locally with `npx wrangler d1 migrations apply <db> --local`.
-- **Never apply migrations to the remote database.** Do not run `migrations apply` with
-  `--remote`. Remote schema changes are the user's decision to make and execute.
+- Create with `npx wrangler d1 migrations create quizmaker-2026 <description>`.
+- List with `npx wrangler d1 migrations list quizmaker-2026`.
+- Apply locally with `npx wrangler d1 migrations apply quizmaker-2026 --local`.
+- Apply remotely **only when the user explicitly asks** (needed for production register/login
+  after creating a new remote D1): `npx wrangler d1 migrations apply quizmaker-2026 --remote`.
+- Default: do not use `--remote`.
