@@ -146,7 +146,13 @@ After the response, the client navigates to `/login`.
 
 ### User Interface Requirements
 
-Use existing shadcn/ui pieces (`button`, `card`, `field`, `input`, `label`). Forms are client components because they must hash with Web Crypto before `fetch`. Do not add `react-hook-form`.
+Use the **shadcn/ui login and signup blocks** as the visual starting point (Card, Field, Input, Button, centered `min-h-svh` page shell). Styling is Tailwind via those components; do not add a separate CSS module or form library. Forms are client components because they must hash with Web Crypto before `fetch`. Do not add `react-hook-form`.
+
+**Block files (paths match the shadcn examples):**
+- `src/app/login/page.tsx` + `src/components/login-form.tsx`
+- `src/app/register/page.tsx` + `src/components/signup-form.tsx`
+
+**Adaptations from the stock blocks (required):** the blocks are email-centric and include Google and “forgot password”. Those conflict with this feature’s API and out-of-scope list. Keep the layout and component composition; change the fields and actions as below.
 
 #### Home (/)
 
@@ -154,24 +160,32 @@ Use existing shadcn/ui pieces (`button`, `card`, `field`, `input`, `label`). For
 
 #### Register (/register)
 
-- Fields: First name, Last name, Username, Email, Password, Confirm password
+- Page shell from the shadcn signup block (`flex min-h-svh w-full items-center justify-center p-6 md:p-10`, inner `max-w-sm`).
+- `SignupForm` uses shadcn `Card` / `Field` / `Input` / `Button`.
+- Fields (stock block had a single “Full Name” and no username; we split/add to match the user table):
+  - First name, Last name, Username, Email, Password, Confirm password
+- **Do not** include “Sign up with Google” (social login is out of scope).
+- “Already have an account? Sign in” links to `/login`.
 - Client validation before hashing:
   - All fields required
   - Password and confirm password match
   - Password at least 8 characters (checked on plaintext, then hashed)
   - Email looks like an email
-  - Username 3–50 characters, `[A-Za-z0-9_]+`
+  - Username at least 3 characters (may equal the email, e.g. `ada@school.edu`)
 - On submit: hash the plaintext password with SHA-256, POST `/api/auth/register` with `passwordHash`, never send plaintext
 - Success: navigate to `/mcqs`
-- Failure: show the server or validation message on the form; do not navigate
+- Failure: show the server or validation message on the form (`FieldError`); do not navigate
 
 #### Login (/login)
 
-- Fields: Username, Password
+- Page shell from the shadcn login block (same centered `min-h-svh` layout, inner `max-w-sm`).
+- `LoginForm` uses shadcn `Card` / `Field` / `Input` / `Button`.
+- Fields: Username, Password (stock block used Email; login API is by `username`, which may be the teacher’s email)
+- **Do not** include “Forgot your password?” or “Login with Google”.
+- “Don’t have an account? Sign up” links to `/register`.
 - On submit: hash the password, POST `/api/auth/login` with `passwordHash`
 - Success: navigate to `/mcqs`
 - Failure: show `"Invalid username or password"` (or the 400 validation message); do not navigate
-- Link to `/register` for teachers who do not have an account
 
 #### MCQ stub (/mcqs)
 
@@ -341,7 +355,7 @@ Run `npm test` and confirm these tests **fail**.
 - Zod schemas for register and login bodies
 - Green `route.test.ts` files for register, login, and logout
 
-### Phase 4: Pages and MCQ stub - PLANNED
+### Phase 4: Pages and MCQ stub - COMPLETED
 
 **Objective**: Teachers can complete the flow in the browser.
 
@@ -351,28 +365,30 @@ Put interactive UI in client components under `src/components/` so Testing Libra
 
 Mock `fetch` and `next/navigation` (`useRouter`). Use `userEvent` and queries by role/label.
 
-`src/components/auth/register-form.test.tsx`:
+`src/components/signup-form.test.tsx`:
 - renders first name, last name, username, email, password, confirm password
-- client validation: empty fields, mismatched passwords, password shorter than 8 characters, bad email, bad username — no `fetch`
+- client validation: empty fields, mismatched passwords, password shorter than 8 characters, bad email, short username — no `fetch`
 - on valid submit, `fetch` is called with `POST /api/auth/register` and a JSON body that includes `passwordHash` (64-char hex) and **does not** include plaintext `password`
 - 201 response → `router.push("/mcqs")`
 - 409/400 → error text shown, no navigation
+- no Google signup control
 
-`src/components/auth/login-form.test.tsx`:
+`src/components/login-form.test.tsx`:
 - renders username and password
 - valid submit POSTs `/api/auth/login` with `passwordHash`, not plaintext
 - 200 → `router.push("/mcqs")`
 - 401 → `"Invalid username or password"`, no navigation
 - exposes a link toward register
+- no Google login or forgot-password control
 
-`src/components/auth/mcq-stub.test.tsx` (or equivalent):
+`src/components/question-bank-stub.test.tsx`:
 - shows question-bank stub copy, not MCQ authoring controls
 - Log out POSTs `/api/auth/logout` then `router.push("/login")`
 
 Run `npm test` and confirm these tests **fail**.
 
 **Then implement until green**:
-1. Build register and login forms with shadcn `field` / `input` / `button` / `card`, plus `/register` and `/login` pages
+1. Build register and login from the shadcn signup/login blocks (adapted fields), plus `/register` and `/login` pages
 2. Hash on submit, POST JSON, redirect to `/mcqs` on success
 3. Build `/mcqs` stub with logout
 4. Update `/` and root layout metadata (title/description) for QuizMaker
@@ -425,9 +441,9 @@ There are no new red tests in this phase. The “tests” here are the full exis
 - `src/app/api/auth/register/route.test.ts` — register POST
 - `src/app/api/auth/login/route.test.ts` — login POST
 - `src/app/api/auth/logout/route.test.ts` — logout POST
-- `src/components/auth/register-form.tsx` — client registration form (tested)
-- `src/components/auth/login-form.tsx` — client login form (tested)
-- `src/components/auth/*.test.tsx` — form and MCQ stub behavior
+- `src/components/signup-form.tsx` — shadcn signup block adapted for QuizMaker (tested)
+- `src/components/login-form.tsx` — shadcn login block adapted for QuizMaker (tested)
+- `src/components/question-bank-stub.tsx` — MCQ stub with logout (tested)
 - `src/app/register/page.tsx` — registration page wrapper
 - `src/app/login/page.tsx` — login page wrapper
 - `src/app/mcqs/page.tsx` — MCQ stub page
@@ -487,15 +503,15 @@ const response = await fetch("/api/auth/register", {
 - [x] A local D1 database exists, is bound as `DB`, and the `users` migration has been applied locally
 - [ ] A teacher can register with first name, last name, username, email, and password
 - [ ] Username and email may be the same value and registration still succeeds
-- [ ] The password is hashed in the browser before the POST; the network payload contains `passwordHash`, not the plaintext password
+- [x] The password is hashed in the browser before the POST; the network payload contains `passwordHash`, not the plaintext password
 - [ ] `users.password_hash` stores a 64-character hex SHA-256 digest, never plaintext
-- [ ] Successful register returns 201 (without the hash) and the UI navigates to `/mcqs`
-- [ ] Successful login returns 200 (without the hash) and the UI navigates to `/mcqs`
+- [x] Successful register returns 201 (without the hash) and the UI navigates to `/mcqs`
+- [x] Successful login returns 200 (without the hash) and the UI navigates to `/mcqs`
 - [x] Login with a wrong password or unknown username returns 401 with `"Invalid username or password"`
 - [x] Registering a duplicate username or email returns 409
 - [x] Invalid payloads return 400
-- [ ] Logout POST returns 200 and the UI navigates to `/login`
-- [ ] `/mcqs` is a stub only — no MCQ authoring
+- [x] Logout POST returns 200 and the UI navigates to `/login`
+- [x] `/mcqs` is a stub only — no MCQ authoring
 - [x] User service supports create, update, delete, and the lookups login/register need
 - [ ] No cookies, tokens, or session records are introduced
 - [ ] Each of Phases 1–4 was implemented test-first: tests were red, then turned green
@@ -649,9 +665,18 @@ When working with this PRD:
 ## Current Status
 
 **Last Updated**: September 2, 2026
-**Current Phase**: Phase 3 - Auth HTTP endpoints
+**Current Phase**: Phase 4 - Pages and MCQ stub
 **Status**: COMPLETED (awaiting review)
-**Next Steps**: After review, Phase 4 TDD — failing register/login/MCQ stub component tests, then pages and client hashing.
+**Next Steps**: After review, Phase 5 — `npm test`, `npm run lint`, and `npm run build`.
+
+**Phase 4 verification**:
+- TDD: signup/login/stub suites failed (missing components), then passed
+- `npm test`: 9 files, 41 tests, all passing
+- shadcn login/signup block layout on `/login` and `/register`; Google and forgot-password removed
+- Signup fields: first name, last name, username, email, password, confirm password
+- Login field is username (API contract); may be the same as email
+- `/mcqs` stub with logout
+- Browser tools were not available in this session; interaction was verified via Testing Library, not a live browser click-through
 
 **Phase 3 verification**:
 - TDD: three route suites failed (missing `./route`), then passed after handlers were added
