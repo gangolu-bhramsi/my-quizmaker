@@ -261,7 +261,7 @@ Pin **`@vitejs/plugin-react@4`**. Unpinned `plugin-react@6` fails `npm install` 
 - Typed `env.DB`
 - Green `users-table.contract.test.ts`
 
-### Phase 2: Password helper and user service - PLANNED
+### Phase 2: Password helper and user service - COMPLETED
 
 **Objective**: Centralize hashing and all user table access.
 
@@ -496,7 +496,7 @@ const response = await fetch("/api/auth/register", {
 - [ ] Invalid payloads return 400
 - [ ] Logout POST returns 200 and the UI navigates to `/login`
 - [ ] `/mcqs` is a stub only — no MCQ authoring
-- [ ] User service supports create, update, delete, and the lookups login/register need
+- [x] User service supports create, update, delete, and the lookups login/register need
 - [ ] No cookies, tokens, or session records are introduced
 - [ ] Each of Phases 1–4 was implemented test-first: tests were red, then turned green
 - [ ] `npm test` (Vitest) passes with no skipped tests used to hide failures
@@ -606,6 +606,12 @@ Populate this section when issues are found during implementation.
 **Solution**: Local D1 uses a placeholder `database_id` in `wrangler.jsonc`. After login, run `npx wrangler d1 create quizmaker-2026` and replace that id. Keep applying migrations with `--local` only.
 **Code Reference**: `wrangler.jsonc`
 
+### `server-only` is not installed
+**Problem**: `import "server-only"` fails Vitest (`Failed to resolve import "server-only"`).
+**Cause**: The package is not a direct dependency; it only exists under Next's compiled tree.
+**Solution**: Do not import `server-only` in this sprint. Keep `src/lib/db.ts` and `src/lib/services/user.ts` off the client graph by never importing them from `'use client'` modules.
+**Code Reference**: `src/lib/db.ts`
+
 ### `getCloudflareContext` throws in tests
 **Problem**: User-service tests fail before assertions run.
 **Cause**: The real OpenNext helper ran under jsdom.
@@ -637,9 +643,16 @@ When working with this PRD:
 ## Current Status
 
 **Last Updated**: September 2, 2026
-**Current Phase**: Phase 1 - D1, users migration, and Vitest harness
+**Current Phase**: Phase 2 - Password helper and user service
 **Status**: COMPLETED (awaiting review)
-**Next Steps**: After review, Phase 2 TDD — failing `password.test.ts` and `user.test.ts`, then implement the password helper and user service.
+**Next Steps**: After review, Phase 3 TDD — failing register/login/logout route tests, then implement the HTTP endpoints with Zod.
+
+**Phase 2 verification**:
+- TDD: password and user-service suites failed (modules missing), then passed after implementation
+- `npm test`: 3 files, 18 tests, all passing (Phase 1 contract tests still green)
+- `hashPassword` / `hashesMatch` in `src/lib/password.ts` (no `server-only`; usable on client later)
+- D1 access via `getDb()` in `src/lib/db.ts`
+- User service: `createUser`, `findByUsername`, `findPasswordHashByUsername`, `findById`, `updateUser`, `deleteUser`; duplicates throw `UserConflictError`
 
 **Phase 1 verification**:
 - TDD: 3 contract tests failed (no `migrations/`, no `DB` binding), then passed after the migration and binding were added
