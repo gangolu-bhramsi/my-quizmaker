@@ -21,8 +21,8 @@ is not built yet. The source of truth is `ai-workspace/register-login-logout_prd
 - **Vitest** for unit tests
 
 No authentication library or AI SDK is installed yet. Do not write code that imports
-one without adding it first and telling the user. Zod is planned for auth route
-validation in a later phase of the current PRD.
+one without adding it first and telling the user. Zod is installed for auth route
+body validation.
 
 ## Layout
 

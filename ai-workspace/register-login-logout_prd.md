@@ -301,7 +301,7 @@ Run `npm test` and confirm these tests **fail**.
 - User service as the only module that talks to `users`
 - Green `password.test.ts` and `user.test.ts`
 
-### Phase 3: Auth HTTP endpoints - PLANNED
+### Phase 3: Auth HTTP endpoints - COMPLETED
 
 **Objective**: Register, login, and logout over HTTP POST.
 
@@ -491,9 +491,9 @@ const response = await fetch("/api/auth/register", {
 - [ ] `users.password_hash` stores a 64-character hex SHA-256 digest, never plaintext
 - [ ] Successful register returns 201 (without the hash) and the UI navigates to `/mcqs`
 - [ ] Successful login returns 200 (without the hash) and the UI navigates to `/mcqs`
-- [ ] Login with a wrong password or unknown username returns 401 with `"Invalid username or password"`
-- [ ] Registering a duplicate username or email returns 409
-- [ ] Invalid payloads return 400
+- [x] Login with a wrong password or unknown username returns 401 with `"Invalid username or password"`
+- [x] Registering a duplicate username or email returns 409
+- [x] Invalid payloads return 400
 - [ ] Logout POST returns 200 and the UI navigates to `/login`
 - [ ] `/mcqs` is a stub only — no MCQ authoring
 - [x] User service supports create, update, delete, and the lookups login/register need
@@ -527,7 +527,7 @@ const response = await fetch("/api/auth/register", {
 
 - `@opennextjs/cloudflare` `getCloudflareContext()` — D1 binding access
 - shadcn/ui `button`, `card`, `field`, `input`, `label` — already installed
-- **Zod (to add)** — validate register/login bodies
+- **Zod (added)** — validate register/login bodies
 - **Vitest (added, dev)** — `vitest`, `@vitejs/plugin-react@4`, `@testing-library/react`, `@testing-library/user-event`, `jsdom`, `vite-tsconfig-paths`
 
 ### Environment / config
@@ -612,6 +612,12 @@ Populate this section when issues are found during implementation.
 **Solution**: Do not import `server-only` in this sprint. Keep `src/lib/db.ts` and `src/lib/services/user.ts` off the client graph by never importing them from `'use client'` modules.
 **Code Reference**: `src/lib/db.ts`
 
+### `vi.mock` factory ReferenceError
+**Problem**: Auth route tests fail with `Cannot access 'createUser' before initialization`.
+**Cause**: `vi.mock` factories are hoisted above `const createUser = vi.fn()`.
+**Solution**: Create the spies with `vi.hoisted(() => ({ createUser: vi.fn() }))` and use those in the mock factory.
+**Code Reference**: `src/app/api/auth/register/route.test.ts`
+
 ### `getCloudflareContext` throws in tests
 **Problem**: User-service tests fail before assertions run.
 **Cause**: The real OpenNext helper ran under jsdom.
@@ -643,9 +649,17 @@ When working with this PRD:
 ## Current Status
 
 **Last Updated**: September 2, 2026
-**Current Phase**: Phase 2 - Password helper and user service
+**Current Phase**: Phase 3 - Auth HTTP endpoints
 **Status**: COMPLETED (awaiting review)
-**Next Steps**: After review, Phase 3 TDD — failing register/login/logout route tests, then implement the HTTP endpoints with Zod.
+**Next Steps**: After review, Phase 4 TDD — failing register/login/MCQ stub component tests, then pages and client hashing.
+
+**Phase 3 verification**:
+- TDD: three route suites failed (missing `./route`), then passed after handlers were added
+- `npm test`: 6 files, 29 tests, all passing
+- `POST /api/auth/register` — 201 / 400 / 409 / 500 (no hash or stack in errors)
+- `POST /api/auth/login` — 200 / 400 / 401 `"Invalid username or password"`
+- `POST /api/auth/logout` — 200 `{ ok: true }`, no user-service calls
+- Zod schemas in `src/lib/auth/schemas.ts`
 
 **Phase 2 verification**:
 - TDD: password and user-service suites failed (modules missing), then passed after implementation
