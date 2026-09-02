@@ -4,7 +4,7 @@
  */
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "aisprints-starter",
+	"name": "quizmaker-2026",
 	"main": ".open-next/worker.js",
 	"compatibility_date": "2026-07-01",
 	"compatibility_flags": [
@@ -17,7 +17,20 @@
 	},
 	"observability": {
 		"enabled": true
-	}
+	},
+	/**
+	 * Local D1 binding. database_id is a placeholder until `npx wrangler d1 create quizmaker-2026`
+	 * is run after `npx wrangler login`. Replace this UUID with the id Wrangler prints.
+	 * Do not apply migrations with --remote.
+	 */
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "quizmaker-2026",
+			"database_id": "00000000-0000-0000-0000-000000000001",
+			"migrations_dir": "migrations"
+		}
+	]
 	/**
 	 * Smart Placement
 	 * Docs: https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
