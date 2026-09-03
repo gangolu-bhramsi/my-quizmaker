@@ -13,6 +13,7 @@ export const registerBodySchema = z.object({
 });
 
 export const loginBodySchema = z.object({
+	// Value may be the teacher's username or email; lookup matches either column.
 	username: z.string().trim().min(3).max(254),
 	passwordHash: passwordHashSchema,
 });

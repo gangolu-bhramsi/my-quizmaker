@@ -123,12 +123,14 @@ Request bodies use `passwordHash`, not `password`. The client hashes first; the 
 }
 ```
 
-Login is by `username`. Because username may equal email, a teacher who registered with the same value in both fields can still sign in with that value.
+The JSON field is still `username`. Its value may be the teacher's **username or email**. Lookup uses `findByLoginIdentifier`: `WHERE username = ?1 OR email = ?1`, preferring a username match if both could apply.
+
+Login is not email-only. A teacher with username `alovelace` and email `ada@school.edu` can sign in with either value.
 
 **Response:**
 - Success (200): `{ "id": "...", "firstName": "...", "lastName": "...", "username": "...", "email": "..." }` — never include `passwordHash`
 - Error (400): validation failure
-- Error (401): unknown username or hash mismatch (same message for both: `"Invalid username or password"`)
+- Error (401): unknown username/email or hash mismatch (same message for both: `"Invalid username or password"`)
 - Error (500): unexpected server error
 
 Compare hashes with a constant-time check so mismatch time does not leak which field failed.
@@ -180,10 +182,10 @@ Use the **shadcn/ui login and signup blocks** as the visual starting point (Card
 
 - Page shell from the shadcn login block (same centered `min-h-svh` layout, inner `max-w-sm`).
 - `LoginForm` uses shadcn `Card` / `Field` / `Input` / `Button`.
-- Fields: Username, Password (stock block used Email; login API is by `username`, which may be the teacher’s email)
+- Fields: **Username or email**, Password (one field accepts either identifier; the POST body still uses `username`)
 - **Do not** include “Forgot your password?” or “Login with Google”.
 - “Don’t have an account? Sign up” links to `/register`.
-- On submit: hash the password, POST `/api/auth/login` with `passwordHash`
+- On submit: hash the password, POST `/api/auth/login` with `passwordHash` and the typed identifier in `username`
 - Success: navigate to `/mcqs`
 - Failure: show `"Invalid username or password"` (or the 400 validation message); do not navigate
 
@@ -443,7 +445,7 @@ There are no new red tests in this phase. The “tests” here are the full exis
 - `vitest.config.ts` — Vitest + `@/` path resolution (`@vitejs/plugin-react`, `vite-tsconfig-paths`, `environment: "jsdom"`, `globals: true`)
 - `src/lib/password.ts` — SHA-256 hash and constant-time compare (safe on client; no D1)
 - `src/lib/db.ts` — `getDb()` via `getCloudflareContext({ async: true })`
-- `src/lib/services/user.ts` — user CRUD; `UserConflictError` for unique violations
+- `src/lib/services/user.ts` — user CRUD; `UserConflictError` for unique violations; `findByLoginIdentifier` for username-or-email login
 - `src/lib/auth/schemas.ts` — Zod register/login bodies (`passwordHash` 64-char hex)
 - `src/lib/auth/http.ts` — `jsonError`, `readJsonBody`
 - `src/app/api/auth/register/route.ts` — POST register
@@ -623,7 +625,8 @@ vi.mock("@/lib/services/user", () => ({
 - [x] `users.password_hash` stores a 64-character hex SHA-256 digest, never plaintext
 - [x] Successful register returns 201 (without the hash) and the UI navigates to `/mcqs`
 - [x] Successful login returns 200 (without the hash) and the UI navigates to `/mcqs`
-- [x] Login with a wrong password or unknown username returns 401 with `"Invalid username or password"`
+- [x] Login accepts username **or** email in the same field (POST body still uses `username`)
+- [x] Login with a wrong password or unknown username/email returns 401 with `"Invalid username or password"`
 - [x] Registering a duplicate username or email returns 409
 - [x] Invalid payloads return 400
 - [x] Logout POST returns 200 and the UI navigates to `/login`
@@ -631,7 +634,7 @@ vi.mock("@/lib/services/user", () => ({
 - [x] User service supports create, update, delete, and the lookups login/register need
 - [x] No cookies, tokens, or session records are introduced
 - [x] Each of Phases 1–4 was implemented test-first: tests were red, then turned green
-- [x] `npm test` (Vitest) passes with no skipped tests used to hide failures (9 files, 41 tests)
+- [x] `npm test` (Vitest) passes with no skipped tests used to hide failures (9 files, 45 tests)
 - [x] `npm run lint` and `npm run build` succeed
 
 ---
@@ -794,7 +797,7 @@ When working with this PRD:
 12. Do not run `npm run deploy` or `d1 migrations apply --remote` unless the user explicitly asks. Default remains local migrations. If deploy fails on 10034 after a successful upload, use `npm run upload` and enable workers.dev in the dashboard (see Troubleshooting).
 13. Do not edit `cloudflare-env.d.ts` or `package-lock.json` by hand
 14. Verify with `npm test`, `npm run lint`, and `npm run build` before calling the feature done. All three must succeed.
-15. Username may be an email (3–254 chars). Login is by username, not a separate email field.
+15. Login identifier may be username **or** email. The request field remains `username`. Server lookup is `findByLoginIdentifier` / `findPasswordHashByLoginIdentifier`.
 16. Pin `@vitejs/plugin-react@4`. Do not add jest-dom. Use `vi.hoisted` for route mocks. Use `waitFor` after client hashing.
 17. shadcn Button here has no `asChild` / `render`. Style links with `buttonVariants()`.
 18. This sprint is **done**. Do not start MCQ authoring unless a new PRD says so.
@@ -803,10 +806,15 @@ When working with this PRD:
 
 ## Current Status
 
-**Last Updated**: September 2, 2026
+**Last Updated**: September 3, 2026
 **Current Phase**: Phase 5 - Lint, full test suite, and build
 **Status**: COMPLETED
 **Next Steps**: None for this PRD. Later sprints may add MCQ authoring, sessions, or a slower password hash.
+
+**Follow-up (September 3, 2026) — login by email**:
+- Login field label is **Username or email**
+- `findByLoginIdentifier` / `findPasswordHashByLoginIdentifier` match `username OR email` (prefer username if both could apply)
+- `npm test`: 9 files, 45 tests, all passing
 
 **Phase 5 verification**:
 - `npm test`: 9 files, 41 tests, all passing, 0 skipped

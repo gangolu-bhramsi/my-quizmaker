@@ -27,7 +27,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
 		event.preventDefault();
 		const trimmedUsername = username.trim();
 		if (!trimmedUsername || !password) {
-			setError("Username and password are required.");
+			setError("Username or email and password are required.");
 			return;
 		}
 
@@ -66,18 +66,18 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
 			<Card>
 				<CardHeader>
 					<CardTitle>Login to your account</CardTitle>
-					<CardDescription>Enter your username below to login to your account</CardDescription>
+					<CardDescription>Enter your username or email below to login to your account</CardDescription>
 				</CardHeader>
 				<CardContent>
 					<form onSubmit={onSubmit}>
 						<FieldGroup>
 							<Field>
-								<FieldLabel htmlFor="username">Username</FieldLabel>
+								<FieldLabel htmlFor="username">Username or email</FieldLabel>
 								<Input
 									id="username"
 									name="username"
 									type="text"
-									placeholder="alovelace"
+									placeholder="alovelace or ada@school.edu"
 									autoComplete="username"
 									value={username}
 									onChange={(event) => setUsername(event.target.value)}

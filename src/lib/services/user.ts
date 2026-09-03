@@ -132,11 +132,48 @@ export async function findByUsername(username: string): Promise<User | null> {
 	return row ? toUser(row) : null;
 }
 
+export async function findByLoginIdentifier(identifier: string): Promise<User | null> {
+	const db = await getDb();
+	const normalized = normalizeUsername(identifier);
+	const { results } = await db
+		.prepare(
+			`SELECT id, first_name, last_name, username, email
+       FROM users
+       WHERE username = ?1 OR email = ?1
+       ORDER BY CASE WHEN username = ?1 THEN 0 ELSE 1 END
+       LIMIT 1`,
+		)
+		.bind(normalized)
+		.all<UserRow>();
+
+	const row = results[0];
+	return row ? toUser(row) : null;
+}
+
 export async function findPasswordHashByUsername(username: string): Promise<string | null> {
 	const db = await getDb();
 	const { results } = await db
 		.prepare(`SELECT password_hash FROM users WHERE username = ?1`)
 		.bind(normalizeUsername(username))
+		.all<{ password_hash: string }>();
+
+	return results[0]?.password_hash ?? null;
+}
+
+export async function findPasswordHashByLoginIdentifier(
+	identifier: string,
+): Promise<string | null> {
+	const db = await getDb();
+	const normalized = normalizeUsername(identifier);
+	const { results } = await db
+		.prepare(
+			`SELECT password_hash
+       FROM users
+       WHERE username = ?1 OR email = ?1
+       ORDER BY CASE WHEN username = ?1 THEN 0 ELSE 1 END
+       LIMIT 1`,
+		)
+		.bind(normalized)
 		.all<{ password_hash: string }>();
 
 	return results[0]?.password_hash ?? null;

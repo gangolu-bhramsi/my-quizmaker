@@ -5,7 +5,9 @@ import {
 	createUser,
 	deleteUser,
 	findById,
+	findByLoginIdentifier,
 	findByUsername,
+	findPasswordHashByLoginIdentifier,
 	findPasswordHashByUsername,
 	updateUser,
 } from "@/lib/services/user";
@@ -161,6 +163,32 @@ describe("user service", () => {
 		const publicUser = await findByUsername("alovelace");
 		expect(publicUser).not.toHaveProperty("passwordHash");
 		expect(publicUser).not.toHaveProperty("password_hash");
+	});
+
+	it("findByLoginIdentifier matches username or email without leaking the hash", async () => {
+		mock.setResults([{ ...adaRow, password_hash: "should-not-leak" }]);
+
+		const user = await findByLoginIdentifier("Ada@School.EDU");
+
+		expect(user).toEqual(adaPublic);
+		expect(user).not.toHaveProperty("passwordHash");
+		expect(user).not.toHaveProperty("password_hash");
+		expect(mock.calls[0]?.sql).toMatch(/username\s*=\s*\?1/i);
+		expect(mock.calls[0]?.sql).toMatch(/email\s*=\s*\?1/i);
+		expect(mock.calls[0]?.sql).toMatch(/\bOR\b/i);
+		expect(mock.calls[0]?.params).toEqual(["ada@school.edu"]);
+	});
+
+	it("findPasswordHashByLoginIdentifier looks up the hash by username or email", async () => {
+		const storedHash = "c".repeat(64);
+		mock.setResults([{ password_hash: storedHash }]);
+
+		const hash = await findPasswordHashByLoginIdentifier("ada@school.edu");
+
+		expect(hash).toBe(storedHash);
+		expect(mock.calls[0]?.sql).toMatch(/username\s*=\s*\?1/i);
+		expect(mock.calls[0]?.sql).toMatch(/email\s*=\s*\?1/i);
+		expect(mock.calls[0]?.params).toEqual(["ada@school.edu"]);
 	});
 
 	it("findById returns the public user for a matching id", async () => {
