@@ -343,7 +343,7 @@ Run `npm test` and confirm these tests **fail**.
 - MCQ service as the only module that talks to the three tables
 - Green `mcq.test.ts`
 
-### Phase 3: MCQ HTTP endpoints - PLANNED
+### Phase 3: MCQ HTTP endpoints - COMPLETED
 
 **Objective**: List/create/read/update/delete questions and record attempts over HTTP.
 
@@ -355,20 +355,21 @@ Call the exported handlers with `Request` objects. Mock the MCQ service; do not 
 - GET → 200 `{ items }` from `listMcqs`
 - POST valid body → 201 with choices
 - POST missing name, fewer than 2 choices, more than 6, zero or two correct flags → 400
+- POST invalid JSON → 400
 - unexpected throw → 500 without stack in JSON
 
 `src/app/api/mcqs/[id]/route.test.ts`:
 - GET found → 200
 - GET missing → 404
 - PUT valid → 200
-- PUT invalid body → 400
+- PUT invalid JSON or invalid body → 400
 - PUT missing → 404
 - DELETE found → 204
 - DELETE missing → 404
 
 `src/app/api/mcqs/[id]/attempts/route.test.ts`:
 - POST valid `choiceId` → 201
-- POST invalid body → 400
+- POST invalid JSON or invalid body → 400
 - POST unknown question → 404
 - POST choice that does not belong to the question → 400
 
@@ -462,6 +463,10 @@ There are no new red tests in this phase.
 - `src/lib/mcq-tables.contract.test.ts` - reads migration SQL and asserts tables, columns, cascading FKs, and indexes
 - `src/lib/services/mcq.ts` - only module that queries the three MCQ tables
 - `src/lib/services/mcq.test.ts` - mocked D1 coverage for list/create/read/update/delete/attempt
+- `src/lib/mcq/schemas.ts` - Zod bodies for MCQ create/update and attempt submit
+- `src/app/api/mcqs/route.ts` - collection GET/POST
+- `src/app/api/mcqs/[id]/route.ts` - item GET/PUT/DELETE
+- `src/app/api/mcqs/[id]/attempts/route.ts` - attempt POST
 
 ### Implementation Patterns
 
@@ -518,7 +523,7 @@ vi.mock("@/lib/services/mcq", () => ({
 - [ ] Row actions menu offers Edit, Preview, and Delete
 - [ ] Preview lets the teacher pick a choice and records an attempt (`isCorrect` true or false)
 - [ ] Delete removes the question (and cascaded choices/attempts) after confirmation
-- [ ] Invalid payloads return 400; missing ids return 404
+- [x] Invalid payloads return 400; missing ids return 404
 - [ ] Logout from `/mcqs` still works
 - [ ] Each of Phases 1–4 was implemented test-first: tests were red, then turned green
 - [ ] `npm test` passes with no skipped tests used to hide failures
@@ -622,10 +627,10 @@ When working with this PRD:
 ## Current Status
 
 **Last Updated**: September 3, 2026
-**Current Phase**: Phase 2 - MCQ service
+**Current Phase**: Phase 3 - MCQ HTTP endpoints
 **Status**: COMPLETED
 **Evidence**:
-- Service tests were red (`Failed to resolve import "@/lib/services/mcq"`) before the service existed
-- Then green: `npm test -- src/lib/services/mcq.test.ts src/lib/mcq-tables.contract.test.ts` → 15 passed
-- Full suite: `npm test` → 79 passed
-**Next Steps**: Phase 3 — write failing HTTP route tests, then add Zod schemas and `/api/mcqs` handlers
+- Route tests were red (`Failed to resolve import "./route"`) before the handlers existed
+- Then green: Phases 1–3 tests → 37 passed
+- Full suite: `npm test` → 82 passed
+**Next Steps**: Phase 4 — write failing Question Bank and form tests, then replace the `/mcqs` stub
