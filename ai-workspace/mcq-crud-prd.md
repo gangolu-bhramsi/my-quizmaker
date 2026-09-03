@@ -310,7 +310,7 @@ If a test is skipped (`it.skip` / `xit`) to make the suite green, the phase is n
 - Migration SQL under `migrations/`
 - Green `mcq-tables.contract.test.ts`
 
-### Phase 2: MCQ service - PLANNED
+### Phase 2: MCQ service - COMPLETED
 
 **Objective**: Centralize all access to `mcqs`, `mcq_choices`, and `mcq_attempts`.
 
@@ -319,6 +319,7 @@ If a test is skipped (`it.skip` / `xit`) to make the suite green, the phase is n
 `src/lib/services/mcq.test.ts` (mock D1 / `getCloudflareContext()`; never a real database):
 - `create` inserts the question then its choices with numbered placeholders; returns the MCQ with choices; maps `is_correct` 0/1 to boolean `isCorrect`
 - `create` assigns `position` from array order
+- `create` and `update` write the question and choice rows through `db.batch()` so a failed choice insert rolls back
 - `list` selects from `mcqs` without joining choices, newest first
 - `findById` returns the question plus choices ordered by position, or `null`
 - `update` updates name/description, replaces choices, bumps `updated_at`
@@ -333,7 +334,8 @@ Run `npm test` and confirm these tests **fail**.
 **Then implement until green**:
 1. Add `src/lib/services/mcq.ts` with `listMcqs`, `createMcq`, `findMcqById`, `updateMcq`, `deleteMcq`, `createMcqAttempt`
 2. Use prepared statements with numbered placeholders
-3. Re-run `npm test` until Phases 1–2 pass
+3. Batch create/update writes so a failed choice insert rolls back the question write
+4. Re-run `npm test` until Phases 1–2 pass
 
 **Phase gate**: MCQ service tests green. No HTTP routes yet.
 
@@ -458,10 +460,18 @@ There are no new red tests in this phase.
 
 - `migrations/0002_create_mcq_tables.sql` - D1 migration for `mcqs`, `mcq_choices`, and `mcq_attempts` plus FK indexes
 - `src/lib/mcq-tables.contract.test.ts` - reads migration SQL and asserts tables, columns, cascading FKs, and indexes
+- `src/lib/services/mcq.ts` - only module that queries the three MCQ tables
+- `src/lib/services/mcq.test.ts` - mocked D1 coverage for list/create/read/update/delete/attempt
 
 ### Implementation Patterns
 
-D1 access stays in `src/lib/`, not in components:
+D1 access stays in `src/lib/`, not in components. Create and update send the question and choice statements through `db.batch()` so D1 treats them as one transaction:
+
+```typescript
+const batchResults = await db.batch([mcqStatement, ...choiceStatements]);
+```
+
+Reads still use a single prepared statement:
 
 ```typescript
 const { results } = await db
@@ -491,6 +501,7 @@ vi.mock("@/lib/services/mcq", () => ({
 - **Migrations default to `--local`.** Do not apply `--remote` or deploy unless asked.
 - **Exactly one correct choice** per question (classic single-answer MCQ).
 - **Choice replace on update** is intentional and simple; attempt history for that question’s old choice rows is discarded.
+- **Create/update are batched.** `createMcq` and `updateMcq` use D1 `batch()` so a failed choice insert rolls back the question write.
 - **Approved test dependencies:** already installed. **Approved production dependency:** Zod (already installed).
 
 ---
@@ -611,9 +622,10 @@ When working with this PRD:
 ## Current Status
 
 **Last Updated**: September 3, 2026
-**Current Phase**: Phase 1 - MCQ tables migration
+**Current Phase**: Phase 2 - MCQ service
 **Status**: COMPLETED
 **Evidence**:
-- Contract tests were red (4 failed) before the migration existed; then green: `npm test -- src/lib/mcq-tables.contract.test.ts src/lib/users-table.contract.test.ts` → 7 passed
-- Local D1 has `mcqs`, `mcq_choices`, `mcq_attempts`, and the three `idx_mcq_*` indexes; `d1_migrations` lists `0002_create_mcq_tables.sql`
-**Next Steps**: Phase 2 — write failing MCQ service tests, then implement `src/lib/services/mcq.ts`
+- Service tests were red (`Failed to resolve import "@/lib/services/mcq"`) before the service existed
+- Then green: `npm test -- src/lib/services/mcq.test.ts src/lib/mcq-tables.contract.test.ts` → 15 passed
+- Full suite: `npm test` → 79 passed
+**Next Steps**: Phase 3 — write failing HTTP route tests, then add Zod schemas and `/api/mcqs` handlers
