@@ -59,7 +59,7 @@ describe("POST /api/auth/login", () => {
 		const { POST } = await import("./route");
 		const response = await POST(
 			loginRequest({
-				username: "ada@school.edu",
+				email: "ada@school.edu",
 				passwordHash: validHash,
 			}),
 		);
@@ -68,6 +68,49 @@ describe("POST /api/auth/login", () => {
 		expect(await response.json()).toEqual(ada);
 		expect(findPasswordHashByLoginIdentifier).toHaveBeenCalledWith("ada@school.edu");
 		expect(findByLoginIdentifier).toHaveBeenCalledWith("ada@school.edu");
+	});
+
+	it("returns 200 when an email is sent in the username field", async () => {
+		const { POST } = await import("./route");
+		const response = await POST(
+			loginRequest({
+				username: "ada@school.edu",
+				passwordHash: validHash,
+			}),
+		);
+
+		expect(response.status).toBe(200);
+		expect(findPasswordHashByLoginIdentifier).toHaveBeenCalledWith("ada@school.edu");
+	});
+
+	it("returns 200 when both username and email match the same user", async () => {
+		const { POST } = await import("./route");
+		const response = await POST(
+			loginRequest({
+				username: "alovelace",
+				email: "ada@school.edu",
+				passwordHash: validHash,
+			}),
+		);
+
+		expect(response.status).toBe(200);
+		expect(await response.json()).toEqual(ada);
+		expect(findPasswordHashByLoginIdentifier).toHaveBeenCalledWith("alovelace");
+	});
+
+	it("returns 401 when username and email belong to different users", async () => {
+		const { POST } = await import("./route");
+
+		const response = await POST(
+			loginRequest({
+				username: "alovelace",
+				email: "other@school.edu",
+				passwordHash: validHash,
+			}),
+		);
+
+		expect(response.status).toBe(401);
+		expect(await response.json()).toEqual({ error: "Invalid username or password" });
 	});
 
 	it("returns 401 with the same message for an unknown user", async () => {

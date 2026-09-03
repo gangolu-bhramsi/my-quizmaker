@@ -16,9 +16,28 @@ import {
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function validateLogin(username: string, email: string, password: string): string | null {
+	if (!username && !email) {
+		return "Enter a username or email.";
+	}
+	if (!password) {
+		return "Password is required.";
+	}
+	if (username && username.length < 3) {
+		return "Username must be at least 3 characters.";
+	}
+	if (email && !EMAIL_PATTERN.test(email)) {
+		return "Enter a valid email address.";
+	}
+	return null;
+}
+
 export function LoginForm({ className, ...props }: React.ComponentProps<"div">) {
 	const router = useRouter();
 	const [username, setUsername] = useState("");
+	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
 	const [error, setError] = useState<string | null>(null);
 	const [pending, setPending] = useState(false);
@@ -26,8 +45,10 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
 	async function onSubmit(event: FormEvent<HTMLFormElement>) {
 		event.preventDefault();
 		const trimmedUsername = username.trim();
-		if (!trimmedUsername || !password) {
-			setError("Username or email and password are required.");
+		const trimmedEmail = email.trim();
+		const validationError = validateLogin(trimmedUsername, trimmedEmail, password);
+		if (validationError) {
+			setError(validationError);
 			return;
 		}
 
@@ -35,10 +56,18 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
 		setPending(true);
 		try {
 			const passwordHash = await hashPassword(password);
+			const body: { passwordHash: string; username?: string; email?: string } = { passwordHash };
+			if (trimmedUsername) {
+				body.username = trimmedUsername;
+			}
+			if (trimmedEmail) {
+				body.email = trimmedEmail;
+			}
+
 			const response = await fetch("/api/auth/login", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ username: trimmedUsername, passwordHash }),
+				body: JSON.stringify(body),
 			});
 
 			if (response.status === 200) {
@@ -48,9 +77,9 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
 
 			let message = "Invalid username or password";
 			try {
-				const body = (await response.json()) as { error?: string };
-				if (typeof body.error === "string") {
-					message = body.error;
+				const payload = (await response.json()) as { error?: string };
+				if (typeof payload.error === "string") {
+					message = payload.error;
 				}
 			} catch {
 				// keep default
@@ -66,22 +95,35 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
 			<Card>
 				<CardHeader>
 					<CardTitle>Login to your account</CardTitle>
-					<CardDescription>Enter your username or email below to login to your account</CardDescription>
+					<CardDescription>
+						Enter your username, email, or both to login to your account
+					</CardDescription>
 				</CardHeader>
 				<CardContent>
 					<form onSubmit={onSubmit}>
 						<FieldGroup>
 							<Field>
-								<FieldLabel htmlFor="username">Username or email</FieldLabel>
+								<FieldLabel htmlFor="username">Username</FieldLabel>
 								<Input
 									id="username"
 									name="username"
 									type="text"
-									placeholder="alovelace or ada@school.edu"
+									placeholder="alovelace"
 									autoComplete="username"
 									value={username}
 									onChange={(event) => setUsername(event.target.value)}
-									required
+								/>
+							</Field>
+							<Field>
+								<FieldLabel htmlFor="email">Email</FieldLabel>
+								<Input
+									id="email"
+									name="email"
+									type="email"
+									placeholder="ada@school.edu"
+									autoComplete="email"
+									value={email}
+									onChange={(event) => setEmail(event.target.value)}
 								/>
 							</Field>
 							<Field>

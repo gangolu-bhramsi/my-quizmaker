@@ -139,11 +139,11 @@ export async function findByLoginIdentifier(identifier: string): Promise<User | 
 		.prepare(
 			`SELECT id, first_name, last_name, username, email
        FROM users
-       WHERE username = ?1 OR email = ?1
-       ORDER BY CASE WHEN username = ?1 THEN 0 ELSE 1 END
+       WHERE username = ?1 OR email = ?2
+       ORDER BY CASE WHEN username = ?3 THEN 0 ELSE 1 END
        LIMIT 1`,
 		)
-		.bind(normalized)
+		.bind(normalized, normalized, normalized)
 		.all<UserRow>();
 
 	const row = results[0];
@@ -169,11 +169,11 @@ export async function findPasswordHashByLoginIdentifier(
 		.prepare(
 			`SELECT password_hash
        FROM users
-       WHERE username = ?1 OR email = ?1
-       ORDER BY CASE WHEN username = ?1 THEN 0 ELSE 1 END
+       WHERE username = ?1 OR email = ?2
+       ORDER BY CASE WHEN username = ?3 THEN 0 ELSE 1 END
        LIMIT 1`,
 		)
-		.bind(normalized)
+		.bind(normalized, normalized, normalized)
 		.all<{ password_hash: string }>();
 
 	return results[0]?.password_hash ?? null;

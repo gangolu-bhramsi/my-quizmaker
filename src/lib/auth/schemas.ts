@@ -12,8 +12,12 @@ export const registerBodySchema = z.object({
 	passwordHash: passwordHashSchema,
 });
 
-export const loginBodySchema = z.object({
-	// Value may be the teacher's username or email; lookup matches either column.
-	username: z.string().trim().min(3).max(254),
-	passwordHash: passwordHashSchema,
-});
+export const loginBodySchema = z
+	.object({
+		username: z.string().trim().min(3).max(254).optional(),
+		email: z.string().trim().email().max(254).optional(),
+		passwordHash: passwordHashSchema,
+	})
+	.refine((data) => Boolean(data.username) || Boolean(data.email), {
+		message: "username or email is required",
+	});

@@ -174,9 +174,13 @@ describe("user service", () => {
 		expect(user).not.toHaveProperty("passwordHash");
 		expect(user).not.toHaveProperty("password_hash");
 		expect(mock.calls[0]?.sql).toMatch(/username\s*=\s*\?1/i);
-		expect(mock.calls[0]?.sql).toMatch(/email\s*=\s*\?1/i);
+		expect(mock.calls[0]?.sql).toMatch(/email\s*=\s*\?2/i);
 		expect(mock.calls[0]?.sql).toMatch(/\bOR\b/i);
-		expect(mock.calls[0]?.params).toEqual(["ada@school.edu"]);
+		expect(mock.calls[0]?.params).toEqual([
+			"ada@school.edu",
+			"ada@school.edu",
+			"ada@school.edu",
+		]);
 	});
 
 	it("findPasswordHashByLoginIdentifier looks up the hash by username or email", async () => {
@@ -187,8 +191,12 @@ describe("user service", () => {
 
 		expect(hash).toBe(storedHash);
 		expect(mock.calls[0]?.sql).toMatch(/username\s*=\s*\?1/i);
-		expect(mock.calls[0]?.sql).toMatch(/email\s*=\s*\?1/i);
-		expect(mock.calls[0]?.params).toEqual(["ada@school.edu"]);
+		expect(mock.calls[0]?.sql).toMatch(/email\s*=\s*\?2/i);
+		expect(mock.calls[0]?.params).toEqual([
+			"ada@school.edu",
+			"ada@school.edu",
+			"ada@school.edu",
+		]);
 	});
 
 	it("findById returns the public user for a matching id", async () => {

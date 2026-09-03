@@ -17,15 +17,28 @@ export async function POST(request: Request) {
 		return jsonError("Validation error", 400);
 	}
 
-	const storedHash = await findPasswordHashByLoginIdentifier(parsed.data.username);
+	const identifier = parsed.data.username ?? parsed.data.email;
+	if (!identifier) {
+		return jsonError("Validation error", 400);
+	}
+
+	const storedHash = await findPasswordHashByLoginIdentifier(identifier);
 	const matches = hashesMatch(parsed.data.passwordHash, storedHash ?? DUMMY_HASH);
 	if (!storedHash || !matches) {
 		return jsonError(INVALID_CREDENTIALS, 401);
 	}
 
-	const user = await findByLoginIdentifier(parsed.data.username);
+	const user = await findByLoginIdentifier(identifier);
 	if (!user) {
 		return jsonError(INVALID_CREDENTIALS, 401);
+	}
+
+	if (parsed.data.username && parsed.data.email) {
+		const usernameMatches = user.username === parsed.data.username.trim().toLowerCase();
+		const emailMatches = user.email === parsed.data.email.trim().toLowerCase();
+		if (!usernameMatches || !emailMatches) {
+			return jsonError(INVALID_CREDENTIALS, 401);
+		}
 	}
 
 	return Response.json(user);
