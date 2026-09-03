@@ -26,18 +26,18 @@ describe("LoginForm", () => {
 		vi.stubGlobal("fetch", vi.fn());
 	});
 
-	it("renders username, email, and password and a link to register", () => {
+	it("renders username and password and a link to register", () => {
 		render(<LoginForm />);
 
 		expect(screen.getByLabelText(/^username$/i)).toBeTruthy();
-		expect(screen.getByLabelText(/^email$/i)).toBeTruthy();
 		expect(screen.getByLabelText(/^password$/i)).toBeTruthy();
+		expect(screen.queryByLabelText(/^email$/i)).toBeNull();
 		expect(screen.getByRole("link", { name: /sign up/i }).getAttribute("href")).toBe("/register");
 		expect(screen.queryByRole("button", { name: /google/i })).toBeNull();
 		expect(screen.queryByRole("link", { name: /forgot/i })).toBeNull();
 	});
 
-	it("posts a username and passwordHash and never the plaintext password", async () => {
+	it("posts a passwordHash and never the plaintext password", async () => {
 		const user = userEvent.setup();
 		vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { id: "user-1" }) as Response);
 		render(<LoginForm />);
@@ -54,17 +54,17 @@ describe("LoginForm", () => {
 		expect(init.method).toBe("POST");
 		const payload = JSON.parse(String(init.body)) as Record<string, string>;
 		expect(payload.username).toBe("alovelace");
-		expect(payload).not.toHaveProperty("email");
 		expect(payload.passwordHash).toBe(await hashPassword("password1"));
 		expect(payload).not.toHaveProperty("password");
+		expect(payload).not.toHaveProperty("email");
 	});
 
-	it("posts an email and passwordHash when the teacher types only email", async () => {
+	it("posts an email in the username field when the teacher types an email", async () => {
 		const user = userEvent.setup();
 		vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { id: "user-1" }) as Response);
 		render(<LoginForm />);
 
-		await user.type(screen.getByLabelText(/^email$/i), "ada@school.edu");
+		await user.type(screen.getByLabelText(/^username$/i), "ada@school.edu");
 		await user.type(screen.getByLabelText(/^password$/i), "password1");
 		await user.click(screen.getByRole("button", { name: /^login$/i }));
 
@@ -75,43 +75,8 @@ describe("LoginForm", () => {
 			string,
 			string
 		>;
-		expect(payload.email).toBe("ada@school.edu");
-		expect(payload).not.toHaveProperty("username");
+		expect(payload.username).toBe("ada@school.edu");
 		expect(push).toHaveBeenCalledWith("/mcqs");
-	});
-
-	it("posts username and email when both fields are filled", async () => {
-		const user = userEvent.setup();
-		vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { id: "user-1" }) as Response);
-		render(<LoginForm />);
-
-		await user.type(screen.getByLabelText(/^username$/i), "alovelace");
-		await user.type(screen.getByLabelText(/^email$/i), "ada@school.edu");
-		await user.type(screen.getByLabelText(/^password$/i), "password1");
-		await user.click(screen.getByRole("button", { name: /^login$/i }));
-
-		await waitFor(() => {
-			expect(fetch).toHaveBeenCalledTimes(1);
-		});
-		const payload = JSON.parse(String(vi.mocked(fetch).mock.calls[0]?.[1]?.body)) as Record<
-			string,
-			string
-		>;
-		expect(payload.username).toBe("alovelace");
-		expect(payload.email).toBe("ada@school.edu");
-		expect(push).toHaveBeenCalledWith("/mcqs");
-	});
-
-	it("does not fetch when neither username nor email is provided", async () => {
-		const user = userEvent.setup();
-		render(<LoginForm />);
-
-		await user.type(screen.getByLabelText(/^password$/i), "password1");
-		await user.click(screen.getByRole("button", { name: /^login$/i }));
-
-		expect(await screen.findByRole("alert")).toBeTruthy();
-		expect(fetch).not.toHaveBeenCalled();
-		expect(push).not.toHaveBeenCalled();
 	});
 
 	it("navigates to /mcqs after a 200 response", async () => {

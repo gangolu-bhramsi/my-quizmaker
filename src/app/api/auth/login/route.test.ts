@@ -55,22 +55,7 @@ describe("POST /api/auth/login", () => {
 		expect(json).not.toHaveProperty("password_hash");
 	});
 
-	it("returns 200 when the identifier is an email", async () => {
-		const { POST } = await import("./route");
-		const response = await POST(
-			loginRequest({
-				email: "ada@school.edu",
-				passwordHash: validHash,
-			}),
-		);
-
-		expect(response.status).toBe(200);
-		expect(await response.json()).toEqual(ada);
-		expect(findPasswordHashByLoginIdentifier).toHaveBeenCalledWith("ada@school.edu");
-		expect(findByLoginIdentifier).toHaveBeenCalledWith("ada@school.edu");
-	});
-
-	it("returns 200 when an email is sent in the username field", async () => {
+	it("returns 200 when the username field contains an email", async () => {
 		const { POST } = await import("./route");
 		const response = await POST(
 			loginRequest({
@@ -80,37 +65,9 @@ describe("POST /api/auth/login", () => {
 		);
 
 		expect(response.status).toBe(200);
-		expect(findPasswordHashByLoginIdentifier).toHaveBeenCalledWith("ada@school.edu");
-	});
-
-	it("returns 200 when both username and email match the same user", async () => {
-		const { POST } = await import("./route");
-		const response = await POST(
-			loginRequest({
-				username: "alovelace",
-				email: "ada@school.edu",
-				passwordHash: validHash,
-			}),
-		);
-
-		expect(response.status).toBe(200);
 		expect(await response.json()).toEqual(ada);
-		expect(findPasswordHashByLoginIdentifier).toHaveBeenCalledWith("alovelace");
-	});
-
-	it("returns 401 when username and email belong to different users", async () => {
-		const { POST } = await import("./route");
-
-		const response = await POST(
-			loginRequest({
-				username: "alovelace",
-				email: "other@school.edu",
-				passwordHash: validHash,
-			}),
-		);
-
-		expect(response.status).toBe(401);
-		expect(await response.json()).toEqual({ error: "Invalid username or password" });
+		expect(findPasswordHashByLoginIdentifier).toHaveBeenCalledWith("ada@school.edu");
+		expect(findByLoginIdentifier).toHaveBeenCalledWith("ada@school.edu");
 	});
 
 	it("returns 401 with the same message for an unknown user", async () => {

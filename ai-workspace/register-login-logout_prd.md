@@ -119,14 +119,13 @@ Request bodies use `passwordHash`, not `password`. The client hashes first; the 
 ```json
 {
   "username": "alovelace",
-  "email": "ada@school.edu",
   "passwordHash": "64-char-sha256-hex"
 }
 ```
 
-`username` and `email` are both optional, but **at least one is required**. A teacher with username `alovelace` and email `ada@school.edu` can sign in with username only, email only, or both (both must belong to the same account).
+The JSON field is `username`. Its value may be the teacher's **username or email**. Lookup uses `findByLoginIdentifier`: `WHERE username = ?1 OR email = ?2`, preferring a username match (`ORDER BY` with `?3`). Bind the identifier three times so each numbered placeholder has its own value.
 
-Lookup uses `findByLoginIdentifier`: `WHERE username = ?1 OR email = ?2`, preferring a username match (`ORDER BY` with `?3`). Bind the identifier three times so each numbered placeholder has its own value.
+A teacher with username `alovelace` and email `ada@school.edu` can sign in by typing either value in the Username field.
 
 **Response:**
 - Success (200): `{ "id": "...", "firstName": "...", "lastName": "...", "username": "...", "email": "..." }` — never include `passwordHash`
@@ -183,10 +182,10 @@ Use the **shadcn/ui login and signup blocks** as the visual starting point (Card
 
 - Page shell from the shadcn login block (same centered `min-h-svh` layout, inner `max-w-sm`).
 - `LoginForm` uses shadcn `Card` / `Field` / `Input` / `Button`.
-- Fields: **Username**, **Email**, Password. Username and email are separate; the teacher may fill either or both.
+- Fields: **Username**, Password. The Username field accepts a username **or** an email; the POST body still uses `username`.
 - **Do not** include “Forgot your password?” or “Login with Google”.
 - “Don’t have an account? Sign up” links to `/register`.
-- On submit: hash the password, POST `/api/auth/login` with `passwordHash` plus whichever identifiers were filled (`username` and/or `email`)
+- On submit: hash the password, POST `/api/auth/login` with `passwordHash` and the typed identifier in `username`
 - Success: navigate to `/mcqs`
 - Failure: show `"Invalid username or password"` (or the 400 validation message); do not navigate
 
@@ -626,7 +625,7 @@ vi.mock("@/lib/services/user", () => ({
 - [x] `users.password_hash` stores a 64-character hex SHA-256 digest, never plaintext
 - [x] Successful register returns 201 (without the hash) and the UI navigates to `/mcqs`
 - [x] Successful login returns 200 (without the hash) and the UI navigates to `/mcqs`
-- [x] Login accepts username, email, or both (POST body may include `username` and/or `email`)
+- [x] Login accepts username **or** email in the Username field (POST body uses `username`)
 - [x] Login with a wrong password or unknown username/email returns 401 with `"Invalid username or password"`
 - [x] Registering a duplicate username or email returns 409
 - [x] Invalid payloads return 400
@@ -635,7 +634,7 @@ vi.mock("@/lib/services/user", () => ({
 - [x] User service supports create, update, delete, and the lookups login/register need
 - [x] No cookies, tokens, or session records are introduced
 - [x] Each of Phases 1–4 was implemented test-first: tests were red, then turned green
-- [x] `npm test` (Vitest) passes with no skipped tests used to hide failures (9 files, 50 tests)
+- [x] `npm test` (Vitest) passes with no skipped tests used to hide failures (9 files, 45 tests)
 - [x] `npm run lint` and `npm run build` succeed
 
 ---
@@ -798,7 +797,7 @@ When working with this PRD:
 12. Do not run `npm run deploy` or `d1 migrations apply --remote` unless the user explicitly asks. Default remains local migrations. If deploy fails on 10034 after a successful upload, use `npm run upload` and enable workers.dev in the dashboard (see Troubleshooting).
 13. Do not edit `cloudflare-env.d.ts` or `package-lock.json` by hand
 14. Verify with `npm test`, `npm run lint`, and `npm run build` before calling the feature done. All three must succeed.
-15. Login identifier may be username, email, or both. Request may include `username` and/or `email`. Server lookup is `findByLoginIdentifier` / `findPasswordHashByLoginIdentifier` (`username = ?1 OR email = ?2`).
+15. Login identifier may be username **or** email, typed in the same Username field. The request field remains `username`. Server lookup is `findByLoginIdentifier` / `findPasswordHashByLoginIdentifier` (`username = ?1 OR email = ?2`).
 16. Pin `@vitejs/plugin-react@4`. Do not add jest-dom. Use `vi.hoisted` for route mocks. Use `waitFor` after client hashing.
 17. shadcn Button here has no `asChild` / `render`. Style links with `buttonVariants()`.
 18. This sprint is **done**. Do not start MCQ authoring unless a new PRD says so.
@@ -812,11 +811,11 @@ When working with this PRD:
 **Status**: COMPLETED
 **Next Steps**: None for this PRD. Later sprints may add MCQ authoring, sessions, or a slower password hash.
 
-**Follow-up (September 3, 2026) — login by username and email**:
-- Login form has separate **Username** and **Email** fields; either or both may be used
-- POST body may include `username` and/or `email` (at least one required)
+**Follow-up (September 3, 2026) — login by username or email**:
+- Login form has **Username** and **Password** only
+- The Username field accepts a username **or** an email; POST body still uses `username`
 - `findByLoginIdentifier` / `findPasswordHashByLoginIdentifier` match `username = ?1 OR email = ?2` (prefer username via `?3`)
-- `npm test`: 9 files, 50 tests, all passing
+- `npm test`: 9 files, 45 tests, all passing
 
 **Phase 5 verification**:
 - `npm test`: 9 files, 41 tests, all passing, 0 skipped
