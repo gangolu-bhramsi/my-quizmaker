@@ -182,7 +182,7 @@ Use the **shadcn/ui login and signup blocks** as the visual starting point (Card
 
 - Page shell from the shadcn login block (same centered `min-h-svh` layout, inner `max-w-sm`).
 - `LoginForm` uses shadcn `Card` / `Field` / `Input` / `Button`.
-- Fields: **Username**, Password. The Username field accepts a username **or** an email; the POST body still uses `username`.
+- Fields: **Username**, Password only. **Do not** add a separate Email field on login. The Username field accepts a username **or** an email (`type="text"` so a username without `@` is valid). Placeholder may hint both (e.g. `alovelace or ada@school.edu`). The POST body field is still `username`.
 - **Do not** include “Forgot your password?” or “Login with Google”.
 - “Don’t have an account? Sign up” links to `/register`.
 - On submit: hash the password, POST `/api/auth/login` with `passwordHash` and the typed identifier in `username`
@@ -380,8 +380,9 @@ Mock `fetch` and `next/navigation` (`useRouter`). Use `userEvent` and queries by
 - no Google signup control
 
 `src/components/login-form.test.tsx`:
-- renders username and password
+- renders username and password; **no** separate email field
 - valid submit POSTs `/api/auth/login` with `passwordHash`, not plaintext
+- typing an email into Username still POSTs it as `username`
 - 200 → `router.push("/mcqs")`
 - 401 → `"Invalid username or password"`, no navigation
 - exposes a link toward register
@@ -457,7 +458,7 @@ There are no new red tests in this phase. The “tests” here are the full exis
 - `src/app/api/auth/login/route.test.ts` — login POST
 - `src/app/api/auth/logout/route.test.ts` — logout POST
 - `src/components/signup-form.tsx` — shadcn signup block adapted for QuizMaker (tested)
-- `src/components/login-form.tsx` — shadcn login block adapted for QuizMaker (tested)
+- `src/components/login-form.tsx` — shadcn login block: Username + Password only; Username accepts username or email (tested)
 - `src/components/question-bank-stub.tsx` — MCQ stub with logout (tested)
 - `src/app/register/page.tsx` — registration page wrapper
 - `src/app/login/page.tsx` — login page wrapper
@@ -812,10 +813,12 @@ When working with this PRD:
 **Next Steps**: None for this PRD. Later sprints may add MCQ authoring, sessions, or a slower password hash.
 
 **Follow-up (September 3, 2026) — login by username or email**:
-- Login form has **Username** and **Password** only
-- The Username field accepts a username **or** an email; POST body still uses `username`
+- Login form has **Username** and **Password** only. Do **not** show a separate Email field on `/login`.
+- The Username field (`type="text"`) accepts a username **or** an email; POST body still uses `username`
 - `findByLoginIdentifier` / `findPasswordHashByLoginIdentifier` match `username = ?1 OR email = ?2` (prefer username via `?3`)
 - `npm test`: 9 files, 45 tests, all passing
+- Live: `https://quizmaker.gangolu-bhramsi.workers.dev` (Worker version `1250c502-1bd0-4470-bef5-407f541f514c`)
+- Product decision: a two-field login (Username **and** Email) was tried and reverted. Keep one identifier field.
 
 **Phase 5 verification**:
 - `npm test`: 9 files, 41 tests, all passing, 0 skipped
@@ -829,7 +832,7 @@ When working with this PRD:
 - `npm test` after Phase 4: 9 files, 41 tests, all passing
 - shadcn login/signup block layout on `/login` and `/register`; Google and forgot-password removed
 - Signup fields: first name, last name, username, email, password, confirm password
-- Login field is username (API contract); may be the same as email
+- Login field is **Username** (API contract `username`); the same field accepts email. Do not add a second identifier input.
 - `/mcqs` stub with logout
 
 **Phase 3 verification**:
