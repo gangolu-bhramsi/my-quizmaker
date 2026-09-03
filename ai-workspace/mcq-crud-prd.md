@@ -388,7 +388,7 @@ Run `npm test` and confirm these tests **fail**.
 - Zod schemas
 - Green `route.test.ts` files
 
-### Phase 4: Question Bank UI - PLANNED
+### Phase 4: Question Bank UI - COMPLETED
 
 **Objective**: Teachers can list, create, edit, preview, and delete MCQs in the browser.
 
@@ -435,7 +435,15 @@ Run `npm test` and confirm these tests **fail**.
 - Green Question Bank and form tests
 - Manual verification of happy path and error path
 
-### Phase 5: Lint, full test suite, and build - PLANNED
+**Phase 4 result (September 3, 2026)**:
+- Tests were red (`Failed to resolve import "@/components/question-bank"` and `mcq-form`) before the components existed
+- Then green: `question-bank.test.tsx` + `mcq-form.test.tsx` → 17 passed
+- Added shadcn `dropdown-menu` and `textarea` (no new runtime npm packages)
+- `/mcqs` renders `QuestionBank`; `/mcqs/new` and `/mcqs/[id]/edit` render `McqForm`
+- Removed `question-bank-stub` (logout lives on `QuestionBank`)
+- Preview-dialog test uses `getByRole("heading")` because the question name also appears in the table cell
+
+### Phase 5: Lint, full test suite, and build - COMPLETED
 
 **Objective**: The feature is actually complete, not just visually present.
 
@@ -453,6 +461,12 @@ There are no new red tests in this phase.
 **Deliverables**:
 - Lint, test, and build results recorded in Current Status
 
+**Phase 5 result (September 3, 2026)**:
+- `npm test`: 15 files, 97 tests, all passing, 0 skipped
+- `npm run lint`: exit 0. One `react-hooks/set-state-in-effect` error in `QuestionBank` was fixed by fetching inside an async IIFE. Remaining 2 warnings are in generated `.wrangler/tmp/`
+- `npm run build` (via `npm run preview`): exit 0. New routes: `/mcqs` static, `/mcqs/new` static, `/mcqs/[id]/edit` dynamic
+- Preview Worker ready on `http://127.0.0.1:8787` with local D1; HTML for `/mcqs` and `/mcqs/new` contains the expected copy; API create / incorrect+correct attempt / update / delete then 404 succeeded
+
 ---
 
 ## Technical Implementation Details
@@ -467,6 +481,15 @@ There are no new red tests in this phase.
 - `src/app/api/mcqs/route.ts` - collection GET/POST
 - `src/app/api/mcqs/[id]/route.ts` - item GET/PUT/DELETE
 - `src/app/api/mcqs/[id]/attempts/route.ts` - attempt POST
+- `src/components/ui/dropdown-menu.tsx` - shadcn row-actions menu
+- `src/components/ui/textarea.tsx` - shadcn description field
+- `src/components/question-bank.tsx` - list table, preview/delete dialogs, logout
+- `src/components/question-bank.test.tsx` - mocked-fetch coverage for list, empty state, actions, preview attempt, delete, logout
+- `src/components/mcq-form.tsx` - shared create/edit form (2–6 choices, client validation)
+- `src/components/mcq-form.test.tsx` - create/edit validation, POST/PUT, cancel, not-found
+- `src/app/mcqs/page.tsx` - Question Bank page
+- `src/app/mcqs/new/page.tsx` - create page
+- `src/app/mcqs/[id]/edit/page.tsx` - edit page (`params` is a Promise)
 
 ### Implementation Patterns
 
@@ -514,20 +537,20 @@ vi.mock("@/lib/services/mcq", () => ({
 ## Acceptance Criteria
 
 - [x] Local D1 has `mcqs`, `mcq_choices`, and `mcq_attempts` from a migration applied with `--local`
-- [ ] A teacher can open `/mcqs` and see a table of questions (empty state when none)
-- [ ] Create question opens a form with two choice rows, Save, and Cancel
-- [ ] The teacher can add choices up to six and cannot go below two
-- [ ] Save creates a question with name, description, and choices via `POST /api/mcqs`
-- [ ] Edit loads the question and saves via `PUT /api/mcqs/:id`
-- [ ] Cancel returns to `/mcqs` without writing
-- [ ] Row actions menu offers Edit, Preview, and Delete
-- [ ] Preview lets the teacher pick a choice and records an attempt (`isCorrect` true or false)
-- [ ] Delete removes the question (and cascaded choices/attempts) after confirmation
+- [x] A teacher can open `/mcqs` and see a table of questions (empty state when none)
+- [x] Create question opens a form with two choice rows, Save, and Cancel
+- [x] The teacher can add choices up to six and cannot go below two
+- [x] Save creates a question with name, description, and choices via `POST /api/mcqs`
+- [x] Edit loads the question and saves via `PUT /api/mcqs/:id`
+- [x] Cancel returns to `/mcqs` without writing
+- [x] Row actions menu offers Edit, Preview, and Delete
+- [x] Preview lets the teacher pick a choice and records an attempt (`isCorrect` true or false)
+- [x] Delete removes the question (and cascaded choices/attempts) after confirmation
 - [x] Invalid payloads return 400; missing ids return 404
-- [ ] Logout from `/mcqs` still works
-- [ ] Each of Phases 1–4 was implemented test-first: tests were red, then turned green
-- [ ] `npm test` passes with no skipped tests used to hide failures
-- [ ] `npm run lint` and `npm run build` succeed
+- [x] Logout from `/mcqs` still works
+- [x] Each of Phases 1–4 was implemented test-first: tests were red, then turned green
+- [x] `npm test` passes with no skipped tests used to hide failures
+- [x] `npm run lint` and `npm run build` succeed
 
 ---
 
@@ -553,7 +576,7 @@ vi.mock("@/lib/services/mcq", () => ({
 
 - `@opennextjs/cloudflare` `getCloudflareContext()` — D1 access via `getDb()`
 - shadcn/ui `table`, `button`, `card`, `field`, `input`, `dialog` — already installed
-- shadcn/ui `dropdown-menu`, `textarea` — to be added with the shadcn CLI
+- shadcn/ui `dropdown-menu`, `textarea` — added with the shadcn CLI (copied into `src/components/ui/`)
 - Zod — validate MCQ and attempt bodies
 - Vitest — already installed
 - User logout endpoint from the previous sprint
@@ -593,6 +616,12 @@ vi.mock("@/lib/services/mcq", () => ({
 
 ## Troubleshooting Guide
 
+### Preview dialog test finds the question name twice
+**Problem**: `getByText(/what is 2 \+ 2\?/i)` throws after opening Preview because the name is in both the table cell and the dialog title.
+**Cause**: The list stays visible behind the dialog.
+**Solution**: Assert the dialog heading: `getByRole("heading", { name: /what is 2 \+ 2\?/i })`.
+**Code Reference**: `src/components/question-bank.test.tsx:181`
+
 ### Local apply reports no pending migrations
 **Problem**: `npx wrangler d1 migrations apply quizmaker-2026 --local` prints `No migrations to apply!` even after creating `0002_create_mcq_tables.sql`.
 **Cause**: The local D1 already recorded `0002_create_mcq_tables.sql` in `d1_migrations` from an earlier apply of the same filename.
@@ -627,10 +656,11 @@ When working with this PRD:
 ## Current Status
 
 **Last Updated**: September 3, 2026
-**Current Phase**: Phase 3 - MCQ HTTP endpoints
+**Current Phase**: Phase 5 - Lint, full test suite, and build
 **Status**: COMPLETED
 **Evidence**:
-- Route tests were red (`Failed to resolve import "./route"`) before the handlers existed
-- Then green: Phases 1–3 tests → 37 passed
-- Full suite: `npm test` → 82 passed
-**Next Steps**: Phase 4 — write failing Question Bank and form tests, then replace the `/mcqs` stub
+- Phase 4 UI tests were red (`Failed to resolve import "@/components/question-bank"` / `mcq-form`), then green (17 passed)
+- `npm test`: 97 passed, 0 skipped
+- `npm run lint`: exit 0 after moving the list fetch off a synchronous `useEffect` setState
+- `npm run preview` built successfully; `/mcqs` and `/mcqs/new` HTML and local D1 API smoke (create, attempt, edit, delete) succeeded
+**Next Steps**: Commit (and deploy only if asked). Do not apply remote D1 unless asked.
