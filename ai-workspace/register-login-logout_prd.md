@@ -123,7 +123,7 @@ Request bodies use `passwordHash`, not `password`. The client hashes first; the 
 }
 ```
 
-The JSON field is `username`. Its value may be the teacher's **username or email**. Lookup uses `findByLoginIdentifier`: `WHERE username = ?1 OR email = ?2`, preferring a username match (`ORDER BY` with `?3`). Bind the identifier three times so each numbered placeholder has its own value.
+The JSON field is `username`. Its value may be the teacher's **username or email**. Lookup uses `findByLoginIdentifier`: query `username = ?1` first, then `email = ?1` if that misses. Do not reuse one placeholder across `OR email = ?1` — D1 does not substitute the second occurrence, so email login fails while username login works.
 
 A teacher with username `alovelace` and email `ada@school.edu` can sign in by typing either value in the Username field.
 
@@ -715,6 +715,12 @@ Populate this section when issues are found during implementation.
 **Solution**: Confirm the `d1_databases` block, run `npm run cf-typegen`, apply migrations with `--local`, retry under `npm run preview`.
 **Code Reference**: `wrangler.jsonc`
 
+### Login works with username but not email
+**Problem**: Typing the username signs in; typing the same account's email returns `"Invalid username or password"`.
+**Cause**: D1 does not substitute a reused numbered placeholder. `WHERE username = ?1 OR email = ?1` binds the username column only.
+**Solution**: Look up `username = ?1`, then `email = ?1` in a second statement.
+**Code Reference**: `src/lib/services/user.ts` (`findByLoginIdentifier`, `findPasswordHashByLoginIdentifier`)
+
 ### Unique constraint on register
 **Problem**: Register returns 500 when username or email already exists.
 **Cause**: D1 error not mapped to 409.
@@ -798,7 +804,7 @@ When working with this PRD:
 12. Do not run `npm run deploy` or `d1 migrations apply --remote` unless the user explicitly asks. Default remains local migrations. If deploy fails on 10034 after a successful upload, use `npm run upload` and enable workers.dev in the dashboard (see Troubleshooting).
 13. Do not edit `cloudflare-env.d.ts` or `package-lock.json` by hand
 14. Verify with `npm test`, `npm run lint`, and `npm run build` before calling the feature done. All three must succeed.
-15. Login identifier may be username **or** email, typed in the same Username field. The request field remains `username`. Server lookup is `findByLoginIdentifier` / `findPasswordHashByLoginIdentifier` (`username = ?1 OR email = ?2`).
+15. Login identifier may be username **or** email, typed in the same Username field. The request field remains `username`. Server lookup is username `?1` first, then email `?1` — never `OR email = ?1` on one statement.
 16. Pin `@vitejs/plugin-react@4`. Do not add jest-dom. Use `vi.hoisted` for route mocks. Use `waitFor` after client hashing.
 17. shadcn Button here has no `asChild` / `render`. Style links with `buttonVariants()`.
 18. This sprint is **done**. Do not start MCQ authoring unless a new PRD says so.
@@ -815,7 +821,7 @@ When working with this PRD:
 **Follow-up (September 3, 2026) — login by username or email**:
 - Login form has **Username** and **Password** only. Do **not** show a separate Email field on `/login`.
 - The Username field (`type="text"`) accepts a username **or** an email; POST body still uses `username`
-- `findByLoginIdentifier` / `findPasswordHashByLoginIdentifier` match `username = ?1 OR email = ?2` (prefer username via `?3`)
+- `findByLoginIdentifier` / `findPasswordHashByLoginIdentifier` query username `?1`, then email `?1` if needed
 - `npm test`: 9 files, 45 tests, all passing
 - Live: `https://quizmaker.gangolu-bhramsi.workers.dev` (Worker version `1250c502-1bd0-4470-bef5-407f541f514c`)
 - Product decision: a two-field login (Username **and** Email) was tried and reverted. Keep one identifier field.

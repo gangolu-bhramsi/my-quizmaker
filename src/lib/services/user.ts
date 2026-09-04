@@ -132,22 +132,27 @@ export async function findByUsername(username: string): Promise<User | null> {
 	return row ? toUser(row) : null;
 }
 
-export async function findByLoginIdentifier(identifier: string): Promise<User | null> {
+export async function findByEmail(email: string): Promise<User | null> {
 	const db = await getDb();
-	const normalized = normalizeUsername(identifier);
 	const { results } = await db
 		.prepare(
 			`SELECT id, first_name, last_name, username, email
        FROM users
-       WHERE username = ?1 OR email = ?2
-       ORDER BY CASE WHEN username = ?3 THEN 0 ELSE 1 END
-       LIMIT 1`,
+       WHERE email = ?1`,
 		)
-		.bind(normalized, normalized, normalized)
+		.bind(normalizeEmail(email))
 		.all<UserRow>();
 
 	const row = results[0];
 	return row ? toUser(row) : null;
+}
+
+export async function findByLoginIdentifier(identifier: string): Promise<User | null> {
+	const byUsername = await findByUsername(identifier);
+	if (byUsername) {
+		return byUsername;
+	}
+	return findByEmail(identifier);
 }
 
 export async function findPasswordHashByUsername(username: string): Promise<string | null> {
@@ -160,23 +165,24 @@ export async function findPasswordHashByUsername(username: string): Promise<stri
 	return results[0]?.password_hash ?? null;
 }
 
-export async function findPasswordHashByLoginIdentifier(
-	identifier: string,
-): Promise<string | null> {
+export async function findPasswordHashByEmail(email: string): Promise<string | null> {
 	const db = await getDb();
-	const normalized = normalizeUsername(identifier);
 	const { results } = await db
-		.prepare(
-			`SELECT password_hash
-       FROM users
-       WHERE username = ?1 OR email = ?2
-       ORDER BY CASE WHEN username = ?3 THEN 0 ELSE 1 END
-       LIMIT 1`,
-		)
-		.bind(normalized, normalized, normalized)
+		.prepare(`SELECT password_hash FROM users WHERE email = ?1`)
+		.bind(normalizeEmail(email))
 		.all<{ password_hash: string }>();
 
 	return results[0]?.password_hash ?? null;
+}
+
+export async function findPasswordHashByLoginIdentifier(
+	identifier: string,
+): Promise<string | null> {
+	const byUsername = await findPasswordHashByUsername(identifier);
+	if (byUsername) {
+		return byUsername;
+	}
+	return findPasswordHashByEmail(identifier);
 }
 
 export async function findById(id: string): Promise<User | null> {

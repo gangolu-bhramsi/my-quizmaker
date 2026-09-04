@@ -21,6 +21,7 @@ type QueryCall = { sql: string; params: unknown[] };
 function createMockD1() {
 	const calls: QueryCall[] = [];
 	let nextResults: Record<string, unknown>[] = [];
+	let queuedResults: Record<string, unknown>[][] = [];
 	let nextError: Error | null = null;
 
 	const db = {
@@ -35,7 +36,8 @@ function createMockD1() {
 								nextError = null;
 								throw error;
 							}
-							return { results: nextResults };
+							const queued = queuedResults.shift();
+							return { results: queued ?? nextResults };
 						},
 						async run() {
 							if (nextError) {
@@ -56,6 +58,10 @@ function createMockD1() {
 		calls,
 		setResults(rows: Record<string, unknown>[]) {
 			nextResults = rows;
+			queuedResults = [];
+		},
+		queueResults(...batches: Record<string, unknown>[][]) {
+			queuedResults = batches;
 		},
 		setError(error: Error) {
 			nextError = error;
@@ -86,6 +92,7 @@ describe("user service", () => {
 		vi.clearAllMocks();
 		mock.calls.length = 0;
 		mock.setResults([]);
+		mock.queueResults();
 		vi.mocked(getCloudflareContext).mockResolvedValue({
 			env: { DB: mock.db },
 		} as never);
@@ -165,38 +172,45 @@ describe("user service", () => {
 		expect(publicUser).not.toHaveProperty("password_hash");
 	});
 
-	it("findByLoginIdentifier matches username or email without leaking the hash", async () => {
-		mock.setResults([{ ...adaRow, password_hash: "should-not-leak" }]);
+	it("findByLoginIdentifier matches username without querying email", async () => {
+		mock.setResults([adaRow]);
+
+		const user = await findByLoginIdentifier("ALovelace");
+
+		expect(user).toEqual(adaPublic);
+		expect(mock.calls).toHaveLength(1);
+		expect(mock.calls[0]?.sql).toMatch(/WHERE\s+username\s*=\s*\?1/i);
+		expect(mock.calls[0]?.sql).not.toMatch(/OR\s+email/i);
+		expect(mock.calls[0]?.params).toEqual(["alovelace"]);
+	});
+
+	it("findByLoginIdentifier falls back to an email-only query after username misses", async () => {
+		mock.queueResults([], [{ ...adaRow, password_hash: "should-not-leak" }]);
 
 		const user = await findByLoginIdentifier("Ada@School.EDU");
 
 		expect(user).toEqual(adaPublic);
 		expect(user).not.toHaveProperty("passwordHash");
 		expect(user).not.toHaveProperty("password_hash");
-		expect(mock.calls[0]?.sql).toMatch(/username\s*=\s*\?1/i);
-		expect(mock.calls[0]?.sql).toMatch(/email\s*=\s*\?2/i);
-		expect(mock.calls[0]?.sql).toMatch(/\bOR\b/i);
-		expect(mock.calls[0]?.params).toEqual([
-			"ada@school.edu",
-			"ada@school.edu",
-			"ada@school.edu",
-		]);
+		expect(mock.calls).toHaveLength(2);
+		expect(mock.calls[0]?.sql).toMatch(/WHERE\s+username\s*=\s*\?1/i);
+		expect(mock.calls[0]?.params).toEqual(["ada@school.edu"]);
+		expect(mock.calls[1]?.sql).toMatch(/WHERE\s+email\s*=\s*\?1/i);
+		expect(mock.calls[1]?.sql).not.toMatch(/\bOR\b/i);
+		expect(mock.calls[1]?.params).toEqual(["ada@school.edu"]);
 	});
 
-	it("findPasswordHashByLoginIdentifier looks up the hash by username or email", async () => {
+	it("findPasswordHashByLoginIdentifier looks up the hash by email after username misses", async () => {
 		const storedHash = "c".repeat(64);
-		mock.setResults([{ password_hash: storedHash }]);
+		mock.queueResults([], [{ password_hash: storedHash }]);
 
 		const hash = await findPasswordHashByLoginIdentifier("ada@school.edu");
 
 		expect(hash).toBe(storedHash);
-		expect(mock.calls[0]?.sql).toMatch(/username\s*=\s*\?1/i);
-		expect(mock.calls[0]?.sql).toMatch(/email\s*=\s*\?2/i);
-		expect(mock.calls[0]?.params).toEqual([
-			"ada@school.edu",
-			"ada@school.edu",
-			"ada@school.edu",
-		]);
+		expect(mock.calls).toHaveLength(2);
+		expect(mock.calls[0]?.sql).toMatch(/WHERE\s+username\s*=\s*\?1/i);
+		expect(mock.calls[1]?.sql).toMatch(/WHERE\s+email\s*=\s*\?1/i);
+		expect(mock.calls[1]?.params).toEqual(["ada@school.edu"]);
 	});
 
 	it("findById returns the public user for a matching id", async () => {
